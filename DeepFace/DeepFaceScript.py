@@ -11,10 +11,11 @@ os.makedirs(output_dir, exist_ok=True)
 # Initialize webcam
 cap = cv2.VideoCapture(0)
 
-print("📸 Capturing every 2 seconds. Press 'q' to quit...")
+print("📸 Capturing every 5 seconds. Press 'q' to quit...")
 
 last_capture_time = 0
-interval = 2  # seconds
+interval = 5  # seconds
+valid_emotions = {"happy", "neutral", "surprise"}
 
 while True:
     ret, frame = cap.read()
@@ -28,7 +29,7 @@ while True:
     current_time = time.time()
     if current_time - last_capture_time >= interval:
         try:
-            # Analyze for emotion only
+            # Analyze all detected faces
             analysis = DeepFace.analyze(
                 frame,
                 actions=['emotion'],
@@ -36,14 +37,25 @@ while True:
                 silent=True
             )
 
-            emotion = analysis[0]['dominant_emotion']
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{output_dir}/{timestamp}_{emotion}.jpg"
-            cv2.imwrite(filename, frame)
-            print(f"✅ Saved: {filename}")
+            # Make sure it's a list of faces
+            if not isinstance(analysis, list):
+                analysis = [analysis]
+
+            # Check if any face matches the valid emotions
+            should_save = any(
+                face["dominant_emotion"].lower() in valid_emotions for face in analysis
+            )
+
+            if should_save:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{output_dir}/{timestamp}.jpg"
+                cv2.imwrite(filename, frame)
+                print(f"✅ Saved: {filename}")
+            else:
+                print("ℹ️ No matching emotions found. Skipping.")
 
         except Exception as e:
-            print("⚠️ No face detected. Skipping capture.")
+            print(f"⚠️ No face detected or error: {str(e)}")
 
         last_capture_time = current_time
 
